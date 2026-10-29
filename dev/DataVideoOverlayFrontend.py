@@ -42,7 +42,7 @@ class MainWindow(QWidget):
 
         progressBar.setValue(0)
 
-        saveButton = PushButtonLE('Save', clicked=lambda: backendMain())
+        saveButton = PushButtonLE('Save', clicked=lambda: self.saveButtonClicked())
 
         self.tab1.setLayout(self.makeTabOne())
 
@@ -57,11 +57,11 @@ class MainWindow(QWidget):
     def makeTabOne(self):
         tabOneLayout = QGridLayout()
 
-        pathOne = TextEditLE()
-        pathOne.setPlaceholderText("Path to video")
+        self.videoPath = TextEditLE()
+        self.videoPath.setPlaceholderText("Path to video")
 
         pathOneSelect = PushButtonLE('...')
-        #pathOneSelect.clicked.connect(lambda _, pathOne=pathOne: self.loadFileButton(pathOne,0))
+        pathOneSelect.clicked.connect(lambda _: self.loadFileButton(self.videoPath,1))
 
         # The below blocked out function dynamically creates radio buttons 
         # -------------------------------------------------------
@@ -97,7 +97,7 @@ class MainWindow(QWidget):
 
         # -------------------------------------------------------
 
-        tabOneLayout.addWidget(pathOne,0,0)
+        tabOneLayout.addWidget(self.videoPath,0,0)
 
         tabOneLayout.addWidget(pathOneSelect,0,1)
 
@@ -111,18 +111,18 @@ class MainWindow(QWidget):
 
         def loadCSVLayout(tabTwoLayout):
 
-            pathOne = TextEditLE()
-            pathOne.setPlaceholderText("Path to CSV")
+            self.csvPath = TextEditLE()
+            self.csvPath.setPlaceholderText("Path to CSV")
 
             pathOneSelect = PushButtonLE('...')
-            pathOneSelect.clicked.connect(lambda _, pathOne=pathOne: self.loadFileButton(pathOne,0))
+            pathOneSelect.clicked.connect(lambda _: self.loadFileButton(self.csvPath,0))
 
 
             parseButton = PushButtonLE('Parse')
-            parseButton.clicked.connect(lambda _, tabTwoLayout=tabTwoLayout, fileLocation=pathOne.toPlainText(): displayCSVOptions(tabTwoLayout, fileLocation))
+            parseButton.clicked.connect(lambda _, tabTwoLayout=tabTwoLayout: displayCSVOptions(tabTwoLayout, self.csvPath.toPlainText()))
 
 
-            tabTwoLayout.addWidget(pathOne,0,0)
+            tabTwoLayout.addWidget(self.csvPath,0,0)
 
             tabTwoLayout.addWidget(pathOneSelect,0,1)
 
@@ -130,10 +130,19 @@ class MainWindow(QWidget):
 
 
         def displayCSVOptions(tabTwoLayout, fileLocation):
+            # parse() returns a list of dicts mapping channel name -> list of values
+            # TODO: parse() currently returns hardcoded test data; update this once it reads the real CSV
             returnedData = csvParser.parse(fileLocation)
 
+            channels = []
             for i in returnedData:
-                tabTwoLayout.addWidget()
+                for channel in i:
+                    if channel not in channels:
+                        channels.append(channel)
+
+            # Rows 0 and 1 are the path box and parse button
+            for row, channel in enumerate(channels, start=2):
+                tabTwoLayout.addWidget(QCheckBox(channel),row,0,1,2)
 
 
         if fileLoaded:
@@ -147,6 +156,15 @@ class MainWindow(QWidget):
         #tabTwoLayout.addWidget(radioWidget1,1,0)
 
         return tabTwoLayout
+
+    def saveButtonClicked(self):
+        # Runs the backend with the selected files and shows the [title, message] it returns
+        result = backendMain(self.csvPath.toPlainText(), self.videoPath.toPlainText())
+
+        msg = QMessageBox()
+        msg.setWindowTitle(result[0])
+        msg.setText(result[1])
+        msg.exec()
 
     def loadFileButton(self, textBox, fileTypeIndex):
         # loads the file and ensures the data is somewhat valid
