@@ -407,6 +407,6 @@ def backendMain(csvPath, videoPath):
 
 
 if __name__ == "__main__":
-    # The sample files sit next to this script, so build their paths from here to work from any directory
-    devDir = os.path.dirname(os.path.abspath(__file__))
-    backendMain(os.path.join(devDir, "100HZLOG.CSV"), os.path.join(devDir, "IMG_0144.mp4"))
+    # The sample files live in data/ next to this script, so build their paths from here to work from any directory
+    dataDir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+    backendMain(os.path.join(dataDir, "100HZLOG.CSV"), os.path.join(dataDir, "IMG_0144.mp4"))
