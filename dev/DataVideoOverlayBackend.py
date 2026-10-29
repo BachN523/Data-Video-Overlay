@@ -115,14 +115,15 @@ def makeThrottleBar(df, videoDuration, width=300, height=20, color=(0, 255, 0), 
     return clip
 
 
-def makeGGMeter(df, duration, size=200, maxG=1.5, units_in_ms2=True, flipLat=False, flipLong=False, dotScale=0.1):
+def makeGGMeter(df, duration, size=200, maxG=1.5, units_in_ms2=True, flipLat=False, flipLong=False, dotDiameter=20):
     times = df["Time"].values
     scale = 9.81 if units_in_ms2 else 1.0
     lat = df["VN Accel Lat"].values / scale * (-1 if flipLat else 1)
     lon = df["VN Accel Long"].values / scale * (-1 if flipLong else 1)
     ringRadius = 48 / 100 * size
-    # The dot is centered on its canvas, so shrinking the canvas shrinks the dot around its center
-    dotSize = max(1, int(round(size * dotScale)))
+    # The dot is centered on its canvas and is 26 px wide on the 100 px image, so size the canvas
+    # to make the visible dot dotDiameter pixels wide
+    dotSize = max(1, int(round(dotDiameter * 100 / 26)))
     ring = ImageClip(imgPath("gg.png")).resized((size, size)).with_duration(duration)
     dot = ImageClip(imgPath("ggDot.png")).resized((dotSize, dotSize)).with_duration(duration)
     def dotPos(t):
