@@ -23,6 +23,16 @@ def imgPath(name):
         return os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", name)
 
 
+# Columns the overlays need from the CSV
+requiredColumns = ["Time",
+                   "MPH",
+                   "RPM",
+                   "throttle pos",
+                   "Gear",
+                   "VN Accel Lat",
+                   "VN Accel Long"]
+
+
 def loadCSV(path):
     # Read CSV normally
     df = pd.read_csv(path)
@@ -40,13 +50,7 @@ def loadCSV(path):
     df["VN Accel Long"] = df["VN Accel Long"].astype(float)
 
     # Keep only the columns we need
-    return df[["Time",
-               "MPH",
-               "RPM",
-               "throttle pos",
-               "Gear",
-               "VN Accel Lat",
-               "VN Accel Long"]].reset_index(drop=True)
+    return df[requiredColumns].reset_index(drop=True)
 
 
 def stepLookup(t, times, vals):
@@ -87,13 +91,15 @@ def roundedMask(size, radius):
     return np.array(img) / 255.0
 
 
-def makeThrottleBar(df, videoDuration, width=300, height=20, color=(0, 255, 0)):
+def makeThrottleBar(df, videoDuration, width=300, height=20, color=(0, 255, 0), throttleMax=1000):
+    # throttleMax is the logger's full-throttle reading
 
     times = df["Time"].values
     throttle_values = df["throttle pos"].values
 
     def make_frame(t):
-        throttle = float(np.interp(t, times, throttle_values)) / 10
+        throttle = float(np.interp(t, times, throttle_values)) / throttleMax * 100
+        throttle = min(max(throttle, 0), 100)
 
         bar_width = int((throttle / 100) * width)
 
@@ -391,7 +397,7 @@ def backendMain(csvPath, videoPath):
         #finalCompo.write_videofile("result.mp4")
 
         returnArray[0] = "Success!"
-        returnArray[1] = "The video has finished rendering."
+        returnArray[1] = "Preview closed."
 
     else:
         returnArray[0] = "ERROR"

@@ -2,9 +2,10 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from pyqtLE import *
-from DataVideoOverlayBackend import backendMain
+from DataVideoOverlayBackend import backendMain, requiredColumns
 from LE import *
-import sys, csvParser
+import sys, os, csvParser
+import pandas as pd
 
 class MainWindow(QWidget):
     # This class' main purpose is to draw the main window and its associated functionality
@@ -33,8 +34,6 @@ class MainWindow(QWidget):
         self.tabs.addTab(self.tab2, "Data")
         self.tabs.addTab(self.tab3, "Optional")
         
-
-        self.tab1.layout = QGridLayout(self)
 
         progressBar = QProgressBar()
 
@@ -149,7 +148,7 @@ class MainWindow(QWidget):
             displayCSVOptions(tabTwoLayout)
         else:
             loadCSVLayout(tabTwoLayout)
-            fileLoaded == True
+            fileLoaded = True
 
 
 
@@ -179,18 +178,39 @@ class MainWindow(QWidget):
         directory = QFileDialog.getOpenFileName(self, "Open File", "", fileTypes[fileTypeIndex], options=options)
 
         if directory[0] != '':
-      
-            try:
+
+            error = self.validateFile(directory[0], fileTypeIndex)
+
+            if error == None:
                 msg.setText("Successfully loaded file!")
                 msg.setWindowTitle("Success")
                 msg.exec()
 
                 textBox.setPlainText(directory[0])
 
-            except:
-                msg.setText("Could not load Json file.")
+            else:
+                msg.setText(error)
                 msg.setWindowTitle("Error")
                 msg.exec()
+
+    def validateFile(self, path, fileTypeIndex):
+        # Returns None if the file looks usable, otherwise a message saying what's wrong
+        if not os.path.isfile(path):
+            return f"Could not find the file:\n{path}"
+
+        if fileTypeIndex == 0:
+            # CSV: only read the header row to check the columns are there
+            try:
+                columns = pd.read_csv(path, nrows=0).columns
+            except Exception as e:
+                return f"Could not read the CSV file:\n{e}"
+
+            missingColumns = [column for column in requiredColumns if column not in columns]
+
+            if missingColumns:
+                return "The CSV is missing these columns:\n" + "\n".join(missingColumns)
+
+        return None
 
 
 
