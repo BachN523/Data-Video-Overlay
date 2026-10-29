@@ -54,14 +54,19 @@ def stepLookup(t, times, vals):
     return vals[np.clip(np.searchsorted(times, t, side="right") - 1, 0, len(vals) - 1)]
 
 
-def dataAtTime(dataframe, t):
-    times = dataframe["Time"].values
-    speeds = dataframe["MPH"].values
-    revs = dataframe["RPM"].values
-    throttlepos = dataframe["throttle pos"].values
-    gear = dataframe["Gear"].values
-    accelLat = dataframe["VN Accel Lat"].values
-    accelLong = dataframe["VN Accel Long"].values
+def columnArrays(dataframe):
+    # Pull the columns out as numpy arrays once so dataAtTime doesn't redo it every frame
+    return {column: dataframe[column].values for column in dataframe.columns}
+
+
+def dataAtTime(columns, t):
+    times = columns["Time"]
+    speeds = columns["MPH"]
+    revs = columns["RPM"]
+    throttlepos = columns["throttle pos"]
+    gear = columns["Gear"]
+    accelLat = columns["VN Accel Lat"]
+    accelLong = columns["VN Accel Long"]
 
     # 0 = MPH, 1 = RPM, 2 = Throttle Position, 3 = Gear
     return float(np.interp(t, times, speeds)), float(np.interp(t, times, revs)), float(np.interp(t, times, throttlepos)), float(stepLookup(t, times, gear)), float(np.interp(t, times, accelLat)), float(np.interp(t, times, accelLong))
@@ -125,8 +130,13 @@ def makeGGMeter(df, duration, size=200, maxG=1.5, units_in_ms2=True, flipLat=Fal
 
 def makeClip(df, videoDuration, windowSize, fontSizeDivisionFactor, index, needsNeedle=False, imageLocation=None, label=None, conversionRate=1.5, baseValue=300, bgColor=None, horizontalAlign="center", verticalAlign="center", textAlign="left", cornerRoundness=None, textPosition=None):
 
+    columns = columnArrays(df)
+
+    # The displayed number changes far less often than the frame rate, so each string is only rendered once
+    renderedText = {}
+
     def makeTextFrame(t, index, bgColor, horizontalAlign, verticalAlign, textAlign, mask=False):
-        data = dataAtTime(df, t)
+        data = dataAtTime(columns, t)
 
         if label != None:
 
@@ -143,24 +153,39 @@ def makeClip(df, videoDuration, windowSize, fontSizeDivisionFactor, index, needs
             txt = f"{int(data[index])}"
 
 
-        text = TextClip(text=txt,
-                        font_size=(windowSize/fontSizeDivisionFactor),
-                        color="white",
-                        method="caption",
-                        size=(windowSize,windowSize),
-                        transparent=True,
-                        bg_color=bgColor,
-                        horizontal_align=horizontalAlign,
-                        vertical_align=verticalAlign,
-                        text_align=textAlign)
+        if txt not in renderedText:
+            text = TextClip(text=txt,
+                            font_size=(windowSize/fontSizeDivisionFactor),
+                            color="white",
+                            method="caption",
+                            size=(windowSize,windowSize),
+                            transparent=True,
+                            bg_color=bgColor,
+                            horizontal_align=horizontalAlign,
+                            vertical_align=verticalAlign,
+                            text_align=textAlign)
+
+            renderedText[txt] = (text.get_frame(0), text.mask.get_frame(0))
 
 
-        return text.mask.get_frame(t) if mask else text.get_frame(t)
+        return renderedText[txt][1] if mask else renderedText[txt][0]
 
+
+    # Loaded once, only rotated per frame
+    needle = ImageClip(imgPath("needle.png"), False, True)
+    needle = needle.with_duration(videoDuration)
+
+    # moviepy asks for the same needle frame several times per output frame (resize, opacity and mask
+    # compositing each pull it), so keep the rotated image and mask for the current t
+    rotatedFrames = {}
 
     def makeNeedle(t, index, conversionRate, baseValue, mask=False):
-        needle = ImageClip(imgPath("needle.png"), False, True)
-        needle = needle.with_duration(videoDuration)
+        if rotatedFrames.get("t") != t:
+            rotatedFrames.clear()
+            rotatedFrames["t"] = t
+
+        if mask in rotatedFrames:
+            return rotatedFrames[mask]
 
 
         # Zero MPH is the needle rotated 300 degrees
@@ -176,11 +201,13 @@ def makeClip(df, videoDuration, windowSize, fontSizeDivisionFactor, index, needs
         #ZEROMPH = 300
 
         #conversionRate = 1.5
-        mph = dataAtTime(df, t)
+        mph = dataAtTime(columns, t)
 
-        needle = needle.rotated(baseValue - (mph[index] * conversionRate))
+        rotatedNeedle = needle.rotated(baseValue - (mph[index] * conversionRate))
 
-        return needle.mask.get_frame(t) if mask else needle.get_frame(t)
+        rotatedFrames[mask] = rotatedNeedle.mask.get_frame(t) if mask else rotatedNeedle.get_frame(t)
+
+        return rotatedFrames[mask]
 
 
     itemsToCompose = []
