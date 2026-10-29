@@ -6,13 +6,18 @@ __pycache__/
 build/
 dist/
 
-# Local telemetry logs and onboard video (large, machine-specific)
+# Local telemetry logs and onboard video (large)
+# If you ever want to commit a small sample log for testing, 
+#   add !dev/samples/*.csv (or wherever you put it) below that rule.
 *.csv
 *.CSV
 *.mp4
 *.MP4
 *.mov
 *.MOV
+
+# Rendered test videos
+output/
 
 # Local ffmpeg binaries (moviepy falls back to its bundled ffmpeg)
 ffmpeg/
