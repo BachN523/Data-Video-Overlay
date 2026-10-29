@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# PyInstaller
+build/
+dist/
+
+# Local telemetry logs and onboard video (large, machine-specific)
+*.csv
+*.CSV
+*.mp4
+*.MP4
+*.mov
+*.MOV
+
+# Local ffmpeg binaries (moviepy falls back to its bundled ffmpeg)
+ffmpeg/
