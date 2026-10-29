@@ -29,7 +29,8 @@ class TestRender(unittest.TestCase):
         finalCompo = finalCompo.subclipped(0, endTime)
 
         start = time.time()
-        finalCompo.write_videofile(outputPath, threads=os.cpu_count())
+        # temp_audiofile_path keeps moviepy's temporary audio file out of the working directory
+        finalCompo.write_videofile(outputPath, threads=os.cpu_count(), temp_audiofile_path=outputDir)
         print(f"\nRendered {endTime:.1f}s of video in {time.time() - start:.1f}s -> {outputPath}")
 
         self.assertTrue(os.path.exists(outputPath))
