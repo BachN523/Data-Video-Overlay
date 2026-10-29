@@ -115,23 +115,55 @@ def makeThrottleBar(df, videoDuration, width=300, height=20, color=(0, 255, 0), 
     return clip
 
 
-def makeGGMeter(df, duration, size=200, maxG=1.5, units_in_ms2=True, flipLat=False, flipLong=False):
+def makeGGMeter(df, duration, size=200, maxG=1.5, units_in_ms2=True, flipLat=False, flipLong=False, dotScale=0.1):
     times = df["Time"].values
     scale = 9.81 if units_in_ms2 else 1.0
     lat = df["VN Accel Lat"].values / scale * (-1 if flipLat else 1)
     lon = df["VN Accel Long"].values / scale * (-1 if flipLong else 1)
     ringRadius = 48 / 100 * size
+    # The dot is centered on its canvas, so shrinking the canvas shrinks the dot around its center
+    dotSize = max(1, int(round(size * dotScale)))
     ring = ImageClip(imgPath("gg.png")).resized((size, size)).with_duration(duration)
-    dot = ImageClip(imgPath("ggDot.png")).resized((size, size)).with_duration(duration)
+    dot = ImageClip(imgPath("ggDot.png")).resized((dotSize, dotSize)).with_duration(duration)
     def dotPos(t):
         gx = float(np.interp(t, times, lat)) / maxG
         gy = float(np.interp(t, times, lon)) / maxG
         mag = np.hypot(gx, gy)
         if mag > 1:
             gx, gy = gx / mag, gy / mag
-        return (gx * ringRadius, -gy * ringRadius)  # accel up, braking down
+        corner = (size - dotSize) / 2
+        return (corner + gx * ringRadius, corner - gy * ringRadius)  # accel up, braking down
     dot = dot.with_position(dotPos)
-    return CompositeVideoClip([ring, dot], size=(size, size)).with_duration(duration).with_opacity(.58)
+
+    # Lat (X) and Long (Y) readout to the right of the rings, in G's rounded to the nearest tenth
+    renderedText = {}
+
+    def readoutFrame(t, mask=False):
+        # + 0.0 turns -0.0 into 0.0
+        x = round(float(np.interp(t, times, lat)), 1) + 0.0
+        y = round(float(np.interp(t, times, lon)), 1) + 0.0
+        txt = f"X: {x:.1f}\nY: {y:.1f}"
+
+        if txt not in renderedText:
+            text = TextClip(text=txt,
+                            font_size=(size/6),
+                            color="white",
+                            method="caption",
+                            size=(size,size),
+                            transparent=True,
+                            horizontal_align="left",
+                            vertical_align="center",
+                            text_align="left")
+
+            renderedText[txt] = (text.get_frame(0), text.mask.get_frame(0))
+
+        return renderedText[txt][1] if mask else renderedText[txt][0]
+
+    readout = VideoClip(lambda t: readoutFrame(t), duration=duration)
+    readout.mask = VideoClip(lambda t: readoutFrame(t, mask=True), duration=duration, is_mask=True)
+    readout = readout.with_position((int(size * 1.08), 0))
+
+    return CompositeVideoClip([ring, dot, readout], size=(size * 2, size)).with_duration(duration).with_opacity(.58)
 
 
 def makeClip(df, videoDuration, windowSize, fontSizeDivisionFactor, index, needsNeedle=False, imageLocation=None, label=None, conversionRate=1.5, baseValue=300, bgColor=None, horizontalAlign="center", verticalAlign="center", textAlign="left", cornerRoundness=None, textPosition=None):
