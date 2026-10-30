@@ -13,16 +13,16 @@ csvPath = os.path.join(dataDir, "100HZLOG.CSV")
 videoPath = os.path.join(dataDir, "IMG_0144.mp4")
 
 # How much of the video to render
-renderSeconds = 60
+renderSeconds = 20
 
 
 @unittest.skipUnless(os.path.exists(csvPath) and os.path.exists(videoPath), "sample files not found in dev/data")
 class TestRender(unittest.TestCase):
 
-    def test_renderFirstMinute(self):
-        # Renders the first minute with every overlay to dev/output so it can be watched at full speed
+    def test_renderStart(self):
+        # Renders the first renderSeconds with every overlay to dev/output so it can be watched at full speed
         os.makedirs(outputDir, exist_ok=True)
-        outputPath = os.path.join(outputDir, "first_minute.mp4")
+        outputPath = os.path.join(outputDir, f"first_{renderSeconds}s.mp4")
 
         finalCompo = buildComposite(csvPath, videoPath)
         endTime = min(renderSeconds, finalCompo.duration)
