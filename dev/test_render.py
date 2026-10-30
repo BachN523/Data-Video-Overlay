@@ -37,7 +37,8 @@ class TestRender(unittest.TestCase):
 
         rendered = VideoFileClip(outputPath)
         self.assertAlmostEqual(rendered.duration, endTime, delta=0.5)
-        self.assertEqual(rendered.size, finalCompo.size)
+        # The reader returns a list and the composite a tuple, so compare as tuples
+        self.assertEqual(tuple(rendered.size), tuple(finalCompo.size))
         rendered.close()
 
 
